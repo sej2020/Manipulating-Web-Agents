@@ -1,7 +1,7 @@
 import argparse
 
 # locally defined agent
-from agent import DemoAgentArgs
+from src.model.agent import DemoAgentArgs
 
 # browsergym experiments utils
 from browsergym.experiments import EnvArgs, ExpArgs, get_exp_result
@@ -90,7 +90,7 @@ def main():
     if args.task_name == "openended":
         # agent_args.chat_mode = True
         # env_args.wait_for_user_message = True
-        env_args.task_kwargs = {"start_url": args.start_url, "goal": "Navigate to Sam's home page."}
+        env_args.task_kwargs = {"start_url": args.start_url}
 
     # setting up the experiment
     exp_args = ExpArgs(

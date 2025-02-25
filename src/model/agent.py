@@ -9,12 +9,14 @@ import numpy as np
 import openai
 from PIL import Image
 
+from model.mistral import complete
+
 from browsergym.core.action.highlevel import HighLevelActionSet
 from browsergym.core.action.python import PythonActionSet
 from browsergym.experiments import AbstractAgentArgs, Agent
 from browsergym.utils.obs import flatten_axtree_to_str, flatten_dom_to_str, prune_html
 
-from mistral import complete
+
 
 load_dotenv()
 api_key = os.getenv("OPENAI_API_KEY")
@@ -92,10 +94,12 @@ class DemoAgent(Agent):
         self.action_history = []
 
     def get_action(self, obs: dict) -> tuple[str, dict]:
+
         system_msgs = []
         user_msgs = []
 
         if self.chat_mode:
+            print("?"*100)
             system_msgs.append(
                 {
                     "type": "text",
@@ -342,7 +346,6 @@ You will now think step by step and produce your next best action. Reflect on yo
                     {"role": "user", "content": '\n'.join([u['text'] for u in user_msgs])},
                 ],
             )
-            breakpoint()
             action = response
 
         if "I'm done" in action or "noop" in action:

@@ -1,10 +1,11 @@
 from transformers import pipeline
 import torch
 import gc
-pipe = pipeline("text-generation", model="mistralai/Mistral-Small-24B-Instruct-2501")
+
+
 
 def complete(messages):
-    # Clear memory
+    pipe = pipeline("text-generation", model="mistralai/Mistral-Small-24B-Instruct-2501")
     gc.collect()
     torch.cuda.empty_cache()
     return pipe(messages, max_new_tokens=1000)[0]["generated_text"][2]['content']
