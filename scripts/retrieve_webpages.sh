@@ -17,4 +17,4 @@ conda init
 conda activate browser-gym
 
 #Run your program
-python3 -m dataset_maker
+python3 -m src.actions.make_dataset get_webs
