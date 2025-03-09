@@ -9,10 +9,9 @@ import numpy as np
 import openai
 from PIL import Image
 
-from model.mistral import complete
+from src.model.mistral import complete
 
 from browsergym.core.action.highlevel import HighLevelActionSet
-from browsergym.core.action.python import PythonActionSet
 from browsergym.experiments import AbstractAgentArgs, Agent
 from browsergym.utils.obs import flatten_axtree_to_str, flatten_dom_to_str, prune_html
 
@@ -67,6 +66,7 @@ class DemoAgent(Agent):
         use_html: bool,
         use_axtree: bool,
         use_screenshot: bool,
+        trigger: str = None,
     ) -> None:
         super().__init__()
         self.model_name = model_name
@@ -74,6 +74,7 @@ class DemoAgent(Agent):
         self.use_html = use_html
         self.use_axtree = use_axtree
         self.use_screenshot = use_screenshot
+        self.trigger = trigger
 
         if not (use_html or use_axtree):
             raise ValueError(f"Either use_html or use_axtree must be set to True.")
@@ -83,15 +84,13 @@ class DemoAgent(Agent):
 
         self.action_set = HighLevelActionSet(
             subsets=["chat", "tab", "nav", "bid", "infeas"],  # define a subset of the action space
-            # subsets=["chat", "bid", "coord", "infeas"] # allow the agent to also use x,y coordinates
             strict=False,  # less strict on the parsing of the actions
             multiaction=False,  # does not enable the agent to take multiple actions at once
             demo_mode=demo_mode,  # add visual effects
         )
-        # use this instead to allow the agent to directly use Python code
-        # self.action_set = PythonActionSet())
 
         self.action_history = []
+
 
     def get_action(self, obs: dict) -> tuple[str, dict]:
 
@@ -301,7 +300,7 @@ I found the information requested by the user, I will send it to the chat.
                 "text": f"""\
 # Next action
 
-You will now think step by step and produce your next best action. Reflect on your past actions, any resulting error message, and the current state of the page before deciding on your next action. If you think you have completed the task, please simply say "I'm done."
+You will now think step by step and produce your next best action. Reflect on your past actions, any resulting error message, and the current state of the page before deciding on your next action. If you believe you are done with the task, please produce a noop.
 """,
             }
         )
@@ -328,8 +327,10 @@ You will now think step by step and produce your next best action. Reflect on yo
         full_prompt_txt = "\n".join(prompt_text_strings)
         logger.info(full_prompt_txt)
         
-        # query OpenAI model
-        if self.model_name != "mistral":
+
+        # Send prompt to model based on model name
+
+        if "gpt" in self.model_name:
             response = self.openai_client.chat.completions.create(
                 model=self.model_name,
                 messages=[
@@ -338,20 +339,35 @@ You will now think step by step and produce your next best action. Reflect on yo
                 ],
             )
             action = response.choices[0].message.content
-        else:
-        # query mistral
+
+        elif "mistral" in self.model_name:
+            if self.model_name == "mistral-7B":
+                model_size = "7B"
+            elif self.model_name == "mistral-24B":
+                model_size = "24B"
+            else:
+                raise ValueError(f"Unknown model name {self.model_name}")
+
+            sys_content = '\n'.join([s['text'] for s in system_msgs])
+            user_content = '\n'.join([u['text'] for u in user_msgs])
+            if self.trigger:
+                user_content += " " + self.trigger
             response = complete(
                 messages=[
-                    {"role": "system", "content": '\n'.join([s['text'] for s in system_msgs])},
-                    {"role": "user", "content": '\n'.join([u['text'] for u in user_msgs])},
+                    {"role": "system", "content": sys_content},
+                    {"role": "user", "content": user_content},
                 ],
+                model_size=model_size
             )
             action = response
 
-        if "I'm done" in action or "noop" in action:
-            return None, {}
+        else:
+            raise ValueError(f"Unknown model name {self.model_name}")
 
         self.action_history.append(action)
+
+        if "I'm done" in action or "noop()" in action:
+            return None, {}
 
         return action, {}
 
@@ -371,6 +387,7 @@ class DemoAgentArgs(AbstractAgentArgs):
     use_html: bool = False
     use_axtree: bool = True
     use_screenshot: bool = False
+    trigger: str = None
 
     def make_agent(self):
         return DemoAgent(
@@ -380,4 +397,5 @@ class DemoAgentArgs(AbstractAgentArgs):
             use_html=self.use_html,
             use_axtree=self.use_axtree,
             use_screenshot=self.use_screenshot,
+            trigger=self.trigger,
         )

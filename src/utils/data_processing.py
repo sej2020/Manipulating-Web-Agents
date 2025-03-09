@@ -173,7 +173,7 @@ def get_goal_object_batch(ids: list) -> None:
                     data_dict = json.load(f)
                 data_dict['goal_object'] = [goal_object]
                 with open(f"data/{json_name}.json", 'w') as f:
-                    json.dump(data_dict, f)
+                    json.dump(data_dict, f, indent=4)
             
         else:
             print(f"Batch job {batch_id} not completed yet: status is {batch.status}")
@@ -204,7 +204,7 @@ def parse_batch_reponse(response_dict: dict) -> str:
     return goal
 
 
-def promptify_json(obs_json: dict) -> list:
+def promptify_json(obs_json: dict) -> tuple:
     """
     Converts json dictionary objects of website observations into the message format required by an LLM model.
 
@@ -212,7 +212,8 @@ def promptify_json(obs_json: dict) -> list:
         obs_json (dict): The observation dictionary of a website
 
     Returns:
-        messages (list): A list of messages formatted for the LLM model
+        sys_content (str): The system message content
+        user_content (str): The user message content
     """
 
     action_set = HighLevelActionSet(
@@ -243,7 +244,7 @@ and executed by a program, make sure to follow the formatting instructions.
         }
     )
     # goal_object is directly presented as a list of openai-style messages
-    user_msgs.extend(obs_json["goal_object"])
+    user_msgs.extend([{'type': 'text', 'text': goal} for goal in obs_json["goal_object"]]) 
 
     # append url of all open tabs
     user_msgs.append(
@@ -257,7 +258,7 @@ and executed by a program, make sure to follow the formatting instructions.
     ):
         user_msgs.append(
             {"type": "text", "text": f"""\
-Tab {page_index}{" (active tab)" if page_index == obs_json["active_page_index"] else ""}
+Tab {page_index}" (active tab)"
 Title: {page_title}
 URL: {page_url}
 """,
@@ -328,10 +329,16 @@ You will now think step by step and produce your next best action. Reflect on yo
     full_prompt_txt = "\n".join(prompt_text_strings)
     print(full_prompt_txt)
     # query mistral
-    messages=[
-            {"role": "system", "content": '\n'.join([s['text'] for s in system_msgs])},
-            {"role": "user", "content": '\n'.join([u['text'] for u in user_msgs])},
-        ]
-    return messages
+
+    sys_content = '\n'.join([s['text'] for s in system_msgs])
+    user_content = '\n'.join([u['text'] for u in user_msgs])
+
+    # TO BE USED LIKE THIS
+    # messages=[
+    #         {"role": "system", "content": sys_content},
+    #         {"role": "user", "content": user_content}
+    #     ]
+    
+    return sys_content, user_content
     # ready to be fed directly into the model's complete function
 

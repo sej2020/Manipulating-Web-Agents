@@ -1,9 +1,6 @@
 import argparse
-
-# locally defined agent
+import json
 from src.model.agent import DemoAgentArgs
-
-# browsergym experiments utils
 from browsergym.experiments import EnvArgs, ExpArgs, get_exp_result
 
 
@@ -21,28 +18,16 @@ def str2bool(v):
 def parse_args():
     parser = argparse.ArgumentParser(description="Run experiment with hyperparameters.")
     parser.add_argument(
-        "--model_name",
-        type=str,
-        default="gpt-4o-mini",
-        help="Model name.",
-    )
-    parser.add_argument(
-        "--task_name",
-        type=str,
-        default="openended",
-        help="Name of the Browsergym task to run. If 'openended', you need to specify a 'start_url'",
+        "--model",
+        default="mistral-7B",
+        choices=["mistral-7B", "mistral-24B", "gpt-4o-mini"],
+        help="Which LLM to use for the agent.",
     )
     parser.add_argument(
         "--start_url",
         type=str,
-        default="https://www.google.com",
-        help="Starting URL (only for the openended task).",
-    )
-    parser.add_argument(
-        "--visual_effects",
-        type=str2bool,
-        default=True,
-        help="Add visual effects when the agents performs actions.",
+        default="https://sj110.pages.iu.edu/attack_demo.html",
+        help="Starting URL for the environment.",
     )
     parser.add_argument(
         "--use_html",
@@ -57,40 +42,67 @@ def parse_args():
         help="Use AXTree in the agent's observation space.",
     )
     parser.add_argument(
-        "--use_screenshot",
+        "--headless",
         type=str2bool,
         default=False,
-        help="Use screenshot in the agent's observation space.",
+        help="Run the environment in headless mode.",
+    )
+    parser.add_argument(
+        "--goal",
+        type=str,
+        default="Navigate to the contact page",
+        help="Goal of the task. Necessary if headless is True.",
+    )
+    parser.add_argument(
+        "--trigger_json",
+        type=str,
+        default="",
+        help="The name of the JSON file to find a trigger to attack the LLM on this specific task. If not provided, there will be no attack.",
     )
 
     return parser.parse_args()
 
 
 def main():
+    """
+    Runs an experiment where an LLM agent interacts with a web environment to complete a task. If a trigger json is provided,
+    then an adversarial attack is performed on the LLM web navigation agent.
+    """
+
     args = parse_args()
+
+    if args.trigger_json:
+        with open(f"triggers/{args.trigger_json}.json") as f:
+            trigger_dict = json.load(f)
+            trigger = trigger_dict["trigger"]
+    else:
+        trigger = None
+    
     # setting up agent config
     agent_args = DemoAgentArgs(
-        model_name=args.model_name,
+        model_name=args.model,
         chat_mode=False,
-        demo_mode="default" if args.visual_effects else "off",
+        demo_mode="default",
         use_html=args.use_html,
         use_axtree=args.use_axtree,
-        use_screenshot=args.use_screenshot,
+        use_screenshot=False,
+        trigger=trigger,
     )
     # setting up environment config
     env_args = EnvArgs(
-        task_name=args.task_name,
+        task_name="openended",
         task_seed=None,
         max_steps=100,
-        headless=True,  # keep the browser open
-        # viewport={"width": 1500, "height": 1280},  # can be played with if needed
+        headless=args.headless,  # keep the browser open
+        viewport={"width": 1500, "height": 1280},  # can be played with if needed
     )
 
-    # for openended task, set environment and agent to interactive chat mode on a start url
-    if args.task_name == "openended":
-        # agent_args.chat_mode = True
-        # env_args.wait_for_user_message = True
+    if not args.headless:
+        agent_args.chat_mode = True
+        env_args.wait_for_user_message = True
         env_args.task_kwargs = {"start_url": args.start_url}
+    else:
+        env_args.task_kwargs = {"start_url": args.start_url, "goal": args.goal}
 
     # setting up the experiment
     exp_args = ExpArgs(

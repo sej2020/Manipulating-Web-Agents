@@ -105,13 +105,13 @@ class DownloaderEnv(BrowserEnv):
 
         return {
             "chat_messages": obs["chat_messages"],
-            "screenshot": obs["screenshot"],
+            # "screenshot": obs["screenshot"],
             "goal_object": obs["goal_object"],
             "last_action": obs["last_action"],
             "last_action_error": obs["last_action_error"],
             "open_pages_urls": obs["open_pages_urls"],
             "open_pages_titles": obs["open_pages_titles"],
-            "active_page_index": obs["active_page_index"],
+            # "active_page_index": obs["active_page_index"],
             "axtree_txt": flatten_axtree_to_str(obs["axtree_object"]),
             "pruned_html": prune_html(flatten_dom_to_str(obs["dom_object"])),
         }
@@ -215,3 +215,15 @@ def get_website_data(delay: int = 0) -> None:
             dl = DownloaderEnv('https://www.google.com')
             continue
 
+
+
+if __name__ == "__main__":
+
+    # if you want to pull down a single website's data
+    url = "https://sj110.pages.iu.edu/attack_demo.html"
+    website_name = 'zzz_attack_demo_1'
+
+    dl = DownloaderEnv(url)
+    obs = dl.obs_from_url(url)
+    dl.page.close()
+    json.dump(obs, open(f"data/{website_name}.json", 'w'), indent=4)
