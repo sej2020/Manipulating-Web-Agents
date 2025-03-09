@@ -25,13 +25,13 @@ def find_trigger():
     """
 
     args = parse_args()
-    if model == "mistral-7B":
-        model = "mistralai/Mistral-7B-Instruct-v0.3"
-    elif model == "mistral-24B":
-        model = "mistralai/Mistral-Small-24B-Instruct-250"
+    if args.model == "mistral-7B":
+        model_name = "mistralai/Mistral-7B-Instruct-v0.3"
+    elif args.model == "mistral-24B":
+        model_name = "mistralai/Mistral-Small-24B-Instruct-250"
 
-    model = AutoModelForCausalLM.from_pretrained(args.model, torch_dtype=getattr(torch, args.dtype)).to(args.device)
-    tokenizer = AutoTokenizer.from_pretrained(args.model)
+    model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=getattr(torch, args.dtype)).to(args.device)
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
 
     with open(f"data/{args.json_name}.json") as f:
         obs_dict = json.load(f)

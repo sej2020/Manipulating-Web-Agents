@@ -94,7 +94,8 @@ def main():
         task_seed=None,
         max_steps=100,
         headless=args.headless,  # keep the browser open
-        viewport={"width": 1500, "height": 1280},  # can be played with if needed
+        viewport={"width": 800, "height": 680},  # can be played with if needed
+
     )
 
     if not args.headless:
