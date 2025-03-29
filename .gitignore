@@ -4,3 +4,4 @@ data/*
 archive/*
 !data/zzz_attack_demo_1.json
 *.sh
+results/*
