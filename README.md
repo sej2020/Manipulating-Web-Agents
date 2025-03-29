@@ -61,5 +61,6 @@ To optimize an adversarial trigger to control the output of a web navigation age
     --device DEVICE     Device to run the model on.
     --dtype DTYPE       Data type to use for the model.
     ```
+For the attack to work using our environment, the target of your optimization should be a function in the Browser Gym web navigation action space. Refer to the action_space.txt file in the src/attack/utils folder.
 
-The optimized trigger will be saved in a json file to the triggers/ folder, with the name of the accompanying website data json. You can use this trigger to run your own demo using the `python -m src.attack.actions.run_demo` utility with appropriate flags.
+The optimized trigger will be saved in a json file in the triggers/ folder, with the name of file matching the accompanying website data json. You can use this trigger to run your own demo using the `python -m src.attack.actions.run_demo` utility with appropriate flags.
