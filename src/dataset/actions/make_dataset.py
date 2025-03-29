@@ -5,8 +5,8 @@ Note: This script probably has some bugs, it hasn't been tested yet, only the co
 import multiprocessing as mp
 import argparse
 
-from src.utils.website_data import get_website_data
-from src.utils.data_processing import submit_goal_object_batch, get_goal_object_batch
+from src.dataset.utils.website_data import get_website_data
+from src.dataset.utils.data_processing import submit_goal_object_batch, get_goal_object_batch
 
 parser = argparse.ArgumentParser(description='Prepare web navigation dataset')
 

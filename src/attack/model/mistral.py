@@ -22,7 +22,9 @@ def complete(messages: list, model_size: str = "7B") -> str:
     pipe = pipeline("text-generation", model=model, device=DEVICE)
     gc.collect()
     torch.cuda.empty_cache()
-    return pipe(messages, max_new_tokens=1000)[0]["generated_text"][2]['content']
+    out = pipe(messages, max_new_tokens=1000)
+    print(out)
+    return out[0]["generated_text"][2]['content']
 
 
 if __name__ == '__main__':

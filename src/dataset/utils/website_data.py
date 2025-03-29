@@ -12,7 +12,7 @@ from browsergym.core.env import BrowserEnv, Chat
 from browsergym.core.task import OpenEndedTask
 from browsergym.utils.obs import flatten_axtree_to_str, flatten_dom_to_str, prune_html
 
-from src.utils.data_assets import prompt_example_options, prompt_phrasing_options, init_script
+from src.dataset.utils.data_assets import prompt_example_options, prompt_phrasing_options, init_script
 
 load_dotenv()
 api_key = os.getenv("OPENAI_API_KEY")

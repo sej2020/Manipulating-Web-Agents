@@ -1,6 +1,6 @@
 import argparse
 import json
-from src.model.agent import DemoAgentArgs
+from src.attack.model.agent import DemoAgentArgs
 from browsergym.experiments import EnvArgs, ExpArgs, get_exp_result
 
 

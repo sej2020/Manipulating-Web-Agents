@@ -5,15 +5,15 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 import nanogcg
 from nanogcg import GCGConfig
 
-from src.utils.data_processing import promptify_json
+from src.attack.utils.promptify import promptify_json
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--json_name", type=str, help="Name of the JSON file in the data directory to find a trigger for.")
     parser.add_argument("--model", choices=["mistral-7B", "mistral-24B"], default="mistral-7B", help="The model to use for generation.")
     parser.add_argument("--target", type=str, default="```click('41')```", help="The desired output when triggered.")
-    parser.add_argument("--device", type=str, default="cuda")
-    parser.add_argument("--dtype", type=str, default="float16")
+    parser.add_argument("--device", type=str, default="cuda", help="Device to run the model on.")
+    parser.add_argument("--dtype", type=str, default="float16", help="Data type to use for the model.")
     args = parser.parse_args()
     return args
 
@@ -63,14 +63,6 @@ def find_trigger():
 
     print("~~ BEST TRIGGER: ~~")
     print(result.best_string)
-
-    messages[-1]["content"] = messages[-1]["content"] + " " + result.best_string
-
-    input = tokenizer.apply_chat_template(messages, add_generation_prompt=True, return_tensors="pt").to(args.device)
-    output = model.generate(input, do_sample=False, max_new_tokens=512)
-
-    print(f"Prompt:\n{messages[-1]['content']}\n")
-    print(f"Generation:\n{tokenizer.batch_decode(output[:, input.shape[1]:], skip_special_tokens=True)[0]}")
 
     with open(f"triggers/{args.json_name}_trigger.json", "w") as f:
         trig_dict = {

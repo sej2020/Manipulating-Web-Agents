@@ -1,3 +1,6 @@
 data/*
 .env
 **/__pycache__
+archive/*
+!data/zzz_attack_demo_1.json
+*.sh

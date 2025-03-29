@@ -3,7 +3,7 @@ Skeleton Code for Universal Adversarial Trigger (UAT) in PyTorch
 """
 import torch
 import random
-from utils.data_processing import promptify_json
+from dataset.utils.data_processing import promptify_json
 import json
 import pathlib
 

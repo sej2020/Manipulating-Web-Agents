@@ -9,7 +9,7 @@ import numpy as np
 import openai
 from PIL import Image
 
-from src.model.mistral import complete
+from src.attack.model.mistral import complete
 
 from browsergym.core.action.highlevel import HighLevelActionSet
 from browsergym.experiments import AbstractAgentArgs, Agent
@@ -351,7 +351,7 @@ You will now think step by step and produce your next best action. Reflect on yo
             sys_content = '\n'.join([s['text'] for s in system_msgs])
             user_content = '\n'.join([u['text'] for u in user_msgs])
             if self.trigger:
-                user_content += " " + self.trigger
+                user_content.replace("Hidden", self.trigger)
             response = complete(
                 messages=[
                     {"role": "system", "content": sys_content},
