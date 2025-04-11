@@ -49,7 +49,7 @@ def find_trigger():
         search_width=64,
         topk=64,
         seed=42,
-        batch_size=8,
+        batch_size=512,
         verbosity="WARNING"
     )
 
