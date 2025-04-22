@@ -1,0 +1,2 @@
+json_names: ['zzz_attack_demo_1', 'zzz_attack_demo_2']
+targets: ["```click(\"41\")```", "```click(\"41\")```"]

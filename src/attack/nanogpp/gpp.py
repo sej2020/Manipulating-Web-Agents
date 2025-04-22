@@ -217,24 +217,24 @@ class GPP:
             torch.use_deterministic_algorithms(True, warn_only=True)
 
         if config.universal:
-            messages = [[{"role": "user", "content": mess}] for mess in messages] # list of conversations - each conversation is a list of messages
+            assert isinstance(messages, list) and isinstance(messages[0], list) and isinstance(messages[0][0], dict), "Universal GPP requires a list of conversations, each conversation being a list of dictionaries, like [[{'role': 'system', 'content': '...'}, {'role': 'user', 'content': '...'}], [], ...]"
+            assert isinstance(target, list) and isinstance(target[0], str), "Universal GPP requires a list of target strings, like ['target1', 'target2', ...]"
+            assert isinstance(target, list) and len(messages) == len(target), f"The number of messages and targets must be the same for universal GPP, but got len(messages) = {len(messages)} and len(target) = {len(target)}."
         else:
             if isinstance(messages, str):
                 messages = [[{"role": "user", "content": messages}]] # single conversation
-            else:
+            elif isinstance(messages, dict):
+                messages = [[copy.deepcopy(messages)]]
+            elif isinstance(messages, list):
                 messages = [copy.deepcopy(messages)]
 
         # Append the GPP string at the end of the prompt if location not specified
         # Assert optim_str is present if universal optimization
         for conversation in messages:
             if not any(["{optim_str}" in d["content"] for d in conversation]):
-                if config.universal:
-                    raise ValueError("GPP string ({optim_str}) must be present in the messages for universal optimization.")
-                else:
-                    messages[-1]["content"] = messages[-1]["content"] + "{optim_str}"
+                raise ValueError("GPP string ({optim_str}) must be present in the messages.")
 
         targets = target if config.universal else [target]
-
 
         before_embeds_list = []
         after_embeds_list = []
@@ -287,7 +287,6 @@ class GPP:
         self.after_str_list = after_str_list
 
         self.target_ids_list = target_ids_list
-
 
         # Initialize the attack buffer
         buffer = self.init_buffer()
@@ -642,10 +641,6 @@ def run(
     """
     if config is None:
         config = GPPConfig()
-
-    if config.universal:
-        assert isinstance(messages, list) and isinstance(target, list), "Universal GPP requires a list of messages and corresponding targets to optimize on."
-        assert len(messages) == len(target), f"The number of messages and targets must be the same for universal GPP, but got len(messages) = {len(messages)} and len(target) = {len(target)}."
 
     logger.setLevel(getattr(logging, config.verbosity))
 
