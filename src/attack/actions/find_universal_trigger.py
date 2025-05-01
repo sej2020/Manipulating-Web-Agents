@@ -2,6 +2,7 @@ import argparse
 import json
 import yaml
 import torch
+import datetime
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from src.attack.nanogpp.gpp import run, GPPConfig
 
@@ -10,7 +11,7 @@ from src.attack.utils.promptify import promptify_json
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--setup_yaml", type=str, default="src/attack/assets/setup.yaml", help="Path to the setup YAML file, which should have a list of JSON files to use and their corresponding targets.")
-    parser.add_argument("--model", choices=["mistral-7B", "mistral-24B", "llama2", "llama3"], default="mistral-7B", help="The model to use for generation.")
+    parser.add_argument("--model", choices=["mistral-7B", "mistral-24B", "llama2", "llama3"], default="llama3", help="The model to use for generation.")
     parser.add_argument("--device", type=str, default="cuda", help="Device to run the model on.")
     parser.add_argument("--dtype", type=str, default="float16", help="Data type to use for the model.")
     args = parser.parse_args()
@@ -43,30 +44,37 @@ def find_trigger():
     
     json_names = setup["json_names"]
     targets = setup["targets"]
+    test_json_names = setup["test_json_names"]
+    test_targets = setup["test_targets"]
 
     messages = []
     for json_name in json_names:
         with open(f"data/{json_name}.json") as f:
             obs_dict = json.load(f)
-
         sys_content, user_content = promptify_json(obs_dict)
-
         message=[
                 {"role": "system", "content": sys_content},
                 {"role": "user", "content": user_content}
             ]
-        
         messages.append(message)
 
-    # could be customizable from the command line in the future
+    test_messages = []
+    for json_name in test_json_names:
+        with open(f"data/{json_name}.json") as f:
+            obs_dict = json.load(f)
+        sys_content, user_content = promptify_json(obs_dict)
+        message=[
+                {"role": "system", "content": sys_content},
+                {"role": "user", "content": user_content}
+            ]
+        test_messages.append(message)
+
     config = GPPConfig(
-        num_steps=1000,
-        search_width=128,
-        topk=64,
+        num_steps=2000,
         universal=True,
         early_stop=True,
         verbosity="INFO",
-        batch_size=4,
+        batch_size=1,
         add_space_before_target = True if args.model == "llama2" else False,
     )
 
@@ -78,23 +86,43 @@ def find_trigger():
         config,
     )
 
-    print("~~ BEST TRIGGER: ~~")
-    print(result.best_string)
+    # class Result:
+    #     def __init__(self, best_string):
+    #         self.best_string = best_string
+    # result = Result("I am a test trigger.")            
 
-    test_message = messages.copy()
-    test_message[-1]["content"] = test_message[-1]["content"].replace("{optim_str}", result.best_string)
+    print("~~ BEST TRIGGER: ~~", flush=True)
+    print(result.best_string, flush=True)
 
-    input = tokenizer.apply_chat_template(test_message, add_generation_prompt=True, return_tensors="pt").to(args.device)
-    output = model.generate(input, do_sample=False, max_new_tokens=512)
+    for message in messages:
+        message[-1]["content"] = message[-1]["content"].replace("{optim_str}", result.best_string)
 
-    print(f"Prompt:\n{test_message[-1]['content']}\n")
-    print(f"Generation:\n{tokenizer.batch_decode(output[:, input.shape[1]:], skip_special_tokens=True)[0]}")
+        input = tokenizer.apply_chat_template(message, add_generation_prompt=True, return_tensors="pt").to(args.device)
+        output = model.generate(input, do_sample=False, max_new_tokens=512)
 
-    with open(f"triggers/{json_names[0]}_trigger_uni.json", "w") as f:
+        print(f"Prompt:\n{message[-1]['content']}\n", flush=True)
+        print(f"Generation:\n{tokenizer.batch_decode(output[:, input.shape[1]:], skip_special_tokens=True)[0]}", flush=True)
+
+
+    print("~~ TESTING TRIGGER: ~~", flush=True)
+
+    for test_message in test_messages:
+        test_message[-1]["content"] = test_message[-1]["content"].replace("{optim_str}", result.best_string)
+
+        input = tokenizer.apply_chat_template(test_message, add_generation_prompt=True, return_tensors="pt").to(args.device)
+        output = model.generate(input, do_sample=False, max_new_tokens=512)
+
+        print(f"Prompt:\n{test_message[-1]['content']}\n", flush=True)
+        print(f"Generation:\n{tokenizer.batch_decode(output[:, input.shape[1]:], skip_special_tokens=True)[0]}", flush=True)
+
+
+    with open(f"triggers/{json_names[0]}_trigger_uni_{datetime.datetime.now()}.json", "w") as f:
         trig_dict = {
             "json_names": json_names,
             "model": args.model,
             "targets": targets,
+            "test_json_names": test_json_names,
+            "test_targets": test_targets,
             "trigger": result.best_string,
         }
         json.dump(trig_dict, f, indent=4)

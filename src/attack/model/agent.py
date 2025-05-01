@@ -9,7 +9,7 @@ import numpy as np
 import openai
 from PIL import Image
 
-from src.attack.model.mistral import complete
+from src.attack.model.huggingface import complete
 
 from browsergym.core.action.highlevel import HighLevelActionSet
 from browsergym.experiments import AbstractAgentArgs, Agent
@@ -330,39 +330,33 @@ You will now think step by step and produce your next best action. Reflect on yo
 
         # Send prompt to model based on model name
 
-        if "gpt" in self.model_name:
-            response = self.openai_client.chat.completions.create(
-                model=self.model_name,
-                messages=[
-                    {"role": "system", "content": system_msgs},
-                    {"role": "user", "content": user_msgs},
-                ],
-            )
-            action = response.choices[0].message.content
+        match self.model_name:
+            case "gpt-4o-mini":
+                response = self.openai_client.chat.completions.create(
+                    model=self.model_name,
+                    messages=[
+                        {"role": "system", "content": system_msgs},
+                        {"role": "user", "content": user_msgs},
+                    ],
+                )
+                action = response.choices[0].message.content
 
-        elif "mistral" in self.model_name:
-            if self.model_name == "mistral-7B":
-                model_size = "7B"
-            elif self.model_name == "mistral-24B":
-                model_size = "24B"
-            else:
+            case "mistral-7B" | "mistral-24B" | "llama2" | "llama3":
+                sys_content = '\n'.join([s['text'] for s in system_msgs])
+                user_content = '\n'.join([u['text'] for u in user_msgs])
+                if self.trigger:
+                    user_content.replace("{optim_str}", self.trigger)
+                response = complete(
+                    messages=[
+                        {"role": "system", "content": sys_content},
+                        {"role": "user", "content": user_content},
+                    ],
+                    model_name=self.model_name,
+                )
+                action = response
+
+            case _:
                 raise ValueError(f"Unknown model name {self.model_name}")
-
-            sys_content = '\n'.join([s['text'] for s in system_msgs])
-            user_content = '\n'.join([u['text'] for u in user_msgs])
-            if self.trigger:
-                user_content.replace("Hidden", self.trigger)
-            response = complete(
-                messages=[
-                    {"role": "system", "content": sys_content},
-                    {"role": "user", "content": user_content},
-                ],
-                model_size=model_size
-            )
-            action = response
-
-        else:
-            raise ValueError(f"Unknown model name {self.model_name}")
 
         self.action_history.append(action)
 

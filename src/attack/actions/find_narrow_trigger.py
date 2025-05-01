@@ -66,8 +66,8 @@ def find_trigger():
         config,
     )
 
-    print("~~ BEST TRIGGER: ~~")
-    print(result.best_string)
+    print("~~ BEST TRIGGER: ~~", flush=True)
+    print(result.best_string, flush=True)
 
     test_message = messages.copy()
     test_message[-1]["content"] = test_message[-1]["content"].replace("{optim_str}", result.best_string)
@@ -75,8 +75,8 @@ def find_trigger():
     input = tokenizer.apply_chat_template(test_message, add_generation_prompt=True, return_tensors="pt").to(args.device)
     output = model.generate(input, do_sample=False, max_new_tokens=512)
 
-    print(f"Prompt:\n{test_message[-1]['content']}\n")
-    print(f"Generation:\n{tokenizer.batch_decode(output[:, input.shape[1]:], skip_special_tokens=True)[0]}")
+    print(f"Prompt:\n{test_message[-1]['content']}\n", flush=True)
+    print(f"Generation:\n{tokenizer.batch_decode(output[:, input.shape[1]:], skip_special_tokens=True)[0]}", flush=True)
 
     with open(f"triggers/{args.json_name}_trigger.json", "w") as f:
         trig_dict = {

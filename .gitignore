@@ -2,6 +2,7 @@ data/*
 .env
 **/__pycache__
 archive/*
-!data/zzz_attack_demo_1.json
+!data/zzz_original_demo.json
+!data/zzz_travel_ad_demo.json
 *.sh
 results/*

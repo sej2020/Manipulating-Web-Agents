@@ -33,7 +33,7 @@ if not logger.hasHandlers():
 @dataclass
 class GPPConfig:
     num_steps: int = 250
-    optim_str_init: Union[str, List[str]] = "x x x x x x x x x x x x x x x x x x x x"
+    optim_str_init: Union[str, List[str]] = "x x x x x x x x x x x x x x x x x x x x x x x x x x x x x"
     search_width: int = 512
     batch_size: int = None
     topk: int = 256
@@ -168,12 +168,9 @@ def filter_ids(ids: Tensor, tokenizer: transformers.PreTrainedTokenizer):
 
     if not filtered_ids:
         # This occurs in some cases, e.g. using the Llama-3 tokenizer with a bad initialization
-        raise RuntimeError(
-            "No token sequences are the same after decoding and re-encoding. "
-            "Consider setting `filter_ids=False` or trying a different `optim_str_init`"
-        )
-
-    return torch.stack(filtered_ids)
+        return False
+    else:
+        return torch.stack(filtered_ids)
 
 
 class GPP:
@@ -312,6 +309,12 @@ class GPP:
 
                 if config.filter_ids:
                     sampled_ids = filter_ids(sampled_ids, tokenizer)
+                    if sampled_ids is False:
+                        logger.warning(
+                            "No token sequences are the same after decoding and re-encoding. "
+                            "Consider setting `filter_ids=False` or trying a different `optim_str_init`"
+                        )
+                        continue
 
                 new_search_width = sampled_ids.shape[0]
 
@@ -343,7 +346,7 @@ class GPP:
                     loss, induced_target = find_executable_batch_size(self._compute_candidates_loss_original, batch_size)(input_embeds, self.target_ids_list[i], tokenized_prompt_lens)
                     total_loss = total_loss + loss
 
-                    induced_target_all = induced_target if induced_target_all is None else torch.stack((induced_target_all, induced_target), dim=0)
+                    induced_target_all = induced_target.unsqueeze(0) if induced_target_all is None else torch.cat((induced_target_all, induced_target.unsqueeze(0)), dim=0)
 
             # select the best candidate sequence
             av_loss = total_loss / (self.prompt_index + 1)
@@ -384,6 +387,7 @@ class GPP:
             if config.universal:
                 induced_all_targets = torch.all(induced_target_all, dim=0)
                 if torch.any(induced_all_targets).item():
+                    print("\n\n######## TRIGGER WORKED, ADDING ANOTHER PROMPT ############\n\n", flush=True)
                     success_idx = torch.where(induced_all_targets == True)[0][0]
                     self.prompt_index += 1
                 if self.prompt_index == len(messages): # this means we have succeed at attacking all prompts
@@ -402,6 +406,14 @@ class GPP:
                         strings=optim_strings,
                     )
                     return result
+
+            del optim_ids_onehot_grad
+            del prompts
+            del prompts_ids
+            del input_embeds
+            torch.cuda.empty_cache()
+            gc.collect()
+
 
         min_loss_index = losses.index(min(losses))
 
@@ -472,20 +484,23 @@ class GPP:
             optim_ids : Tensor, shape = (1, n_optim_ids)
                 the sequence of token ids that are being optimized
         """
+
         model = self.model
         embedding_layer = self.embedding_layer
 
-        # Create the one-hot encoding matrix of our optimized token ids
-        optim_ids_onehot = torch.nn.functional.one_hot(optim_ids, num_classes=embedding_layer.num_embeddings)
-        optim_ids_onehot = optim_ids_onehot.to(model.device, model.dtype)
-        optim_ids_onehot.requires_grad_()
-
-        # (1, num_optim_tokens, vocab_size) @ (vocab_size, embed_dim) -> (1, num_optim_tokens, embed_dim)
-        optim_embeds = optim_ids_onehot @ embedding_layer.weight
-
-        total_loss = torch.zeros(optim_ids.shape[0], device=model.device, dtype=model.dtype)
-
         for i in range(self.prompt_index+1):
+
+            # Create the one-hot encoding matrix of our optimized token ids
+            optim_ids_onehot = torch.nn.functional.one_hot(optim_ids, num_classes=embedding_layer.num_embeddings)
+            optim_ids_onehot = optim_ids_onehot.to(model.device, model.dtype)
+            optim_ids_onehot.requires_grad_()
+
+            # (1, num_optim_tokens, vocab_size) @ (vocab_size, embed_dim) -> (1, num_optim_tokens, embed_dim)
+            optim_embeds = optim_ids_onehot @ embedding_layer.weight
+
+            # total_loss = torch.zeros(optim_ids.shape[0], device=model.device, dtype=model.dtype)
+            total_optim_ids_onehot_grad = torch.zeros((optim_ids.shape[0], optim_ids.shape[1], embedding_layer.num_embeddings), device=model.device, dtype=model.dtype)
+
             input_embeds = torch.cat(
                 [
                     self.before_embeds_list[i],
@@ -513,11 +528,24 @@ class GPP:
             else:
                 loss = torch.nn.functional.cross_entropy(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
 
-            total_loss = total_loss + loss
+            # should free computational graph
+            total_optim_ids_onehot_grad += torch.autograd.grad(outputs=[loss], inputs=[optim_ids_onehot])[0]
 
-        av_loss = total_loss / (self.prompt_index+1)
+            # total_loss = total_loss + loss
 
-        optim_ids_onehot_grad = torch.autograd.grad(outputs=[av_loss], inputs=[optim_ids_onehot])[0]
+            del output
+            del loss
+            del optim_embeds
+            del optim_ids_onehot
+            del input_embeds
+            gc.collect()
+            torch.cuda.empty_cache()
+
+        # av_loss = total_loss / (self.prompt_index+1)
+
+        # optim_ids_onehot_grad = torch.autograd.grad(outputs=[av_loss], inputs=[optim_ids_onehot])[0]
+
+        optim_ids_onehot_grad = total_optim_ids_onehot_grad / (self.prompt_index+1)
 
         return optim_ids_onehot_grad
 

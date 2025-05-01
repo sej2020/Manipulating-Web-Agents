@@ -220,8 +220,8 @@ def get_website_data(delay: int = 0) -> None:
 if __name__ == "__main__":
 
     # if you want to pull down a single website's data
-    url = "https://sj110.pages.iu.edu/attack_demo.html"
-    website_name = 'zzz_attack_demo_1'
+    url = "https://sj110.pages.iu.edu/travel_ad_demo.html"
+    website_name = 'zzz_travel_ad_demo'
 
     dl = DownloaderEnv(url)
     obs = dl.obs_from_url(url)
