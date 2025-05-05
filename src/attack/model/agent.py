@@ -98,22 +98,29 @@ class DemoAgent(Agent):
         user_msgs = []
 
         if self.chat_mode:
-            print("?"*100)
+
             system_msgs.append(
                 {
                     "type": "text",
                     "text": f"""\
 # Instructions
 
-You are a UI Assistant, your goal is to help the user perform tasks using a web browser. You can
-communicate with the user via a chat, to which the user gives you instructions and to which you
-can send back messages. You have access to a web browser that both you and the user can see,
-and with which only you can interact via specific commands.
-
-Review the instructions from the user, the current state of the page and all other information
-to find the best possible next action to accomplish your goal. Your answer will be interpreted
+Review the current state of the page and all other information to find the best
+possible next action to accomplish your goal. Your answer will be interpreted
 and executed by a program, make sure to follow the formatting instructions.
 """,
+#                     "text": f"""\
+# # Instructions
+
+# You are a UI Assistant, your goal is to help the user perform tasks using a web browser. You can
+# communicate with the user via a chat, to which the user gives you instructions and to which you
+# can send back messages. You have access to a web browser that both you and the user can see,
+# and with which only you can interact via specific commands.
+
+# Review the instructions from the user, the current state of the page and all other information
+# to find the best possible next action to accomplish your goal. Your answer will be interpreted
+# and executed by a program, make sure to follow the formatting instructions.
+# """,
                 }
             )
             # append chat messages
@@ -121,24 +128,31 @@ and executed by a program, make sure to follow the formatting instructions.
                 {
                     "type": "text",
                     "text": f"""\
-# Chat Messages
+# Goal
 """,
+                    # "text": f"""\
+# # Chat Messages
+# """,
                 }
             )
             for msg in obs["chat_messages"]:
-                if msg["role"] in ("user", "assistant", "infeasible"):
+                if msg["role"] in ("user"): #, "assistant", "infeasible"):
                     user_msgs.append(
                         {
                             "type": "text",
                             "text": f"""\
-- [{msg['role']}] {msg['message']}
+{msg['message']}
 """,
+#                             "text": f"""\
+# - [{msg['role']}] {msg['message']}
+# """,
                         }
                     )
                 elif msg["role"] == "user_image":
                     user_msgs.append({"type": "image_url", "image_url": msg["message"]})
                 else:
-                    raise ValueError(f"Unexpected chat message role {repr(msg['role'])}")
+                    continue
+                    # raise ValueError(f"Unexpected chat message role {repr(msg['role'])}")
 
         else:
             assert obs["goal_object"], "The goal is missing."
@@ -345,7 +359,7 @@ You will now think step by step and produce your next best action. Reflect on yo
                 sys_content = '\n'.join([s['text'] for s in system_msgs])
                 user_content = '\n'.join([u['text'] for u in user_msgs])
                 if self.trigger:
-                    user_content.replace("{optim_str}", self.trigger)
+                    user_content = user_content.replace("{optim_str}", self.trigger)
                 response = complete(
                     messages=[
                         {"role": "system", "content": sys_content},
