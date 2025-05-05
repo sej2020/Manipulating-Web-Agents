@@ -81,7 +81,7 @@ def submit_annotate_batch(n_splits: int = 2) -> str:
         json_files = [pathlib.Path(f) for f in missing_files['missing_files']]
     else:
         json_files = list(pathlib.Path('data').rglob('*.json'))
-    breakpoint()
+
     prepare_batch_files(json_files, n_splits)
 
     # submitting the batch job
@@ -163,7 +163,7 @@ def get_anno_batch(ids: list) -> None:
             print(f"Batch job {batch_id} not completed yet: status is {batch.status}")
     
     print(need_to_redo)
-    breakpoint()
+
     with open('redo_files.json', 'w') as f:
         json.dump(need_to_redo, f, indent=4)
 
