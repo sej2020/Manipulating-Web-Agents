@@ -2,6 +2,7 @@ import argparse
 import json
 import yaml
 import torch
+import pathlib
 import datetime
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from src.attack.nanogpp.gpp import run, GPPConfig
@@ -10,7 +11,7 @@ from src.attack.utils.promptify import promptify_json
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--setup_yaml", type=str, default="src/attack/assets/setup.yaml", help="Path to the setup YAML file, which should have a list of JSON files to use and their corresponding targets.")
+    parser.add_argument("--setup_yaml", type=str, required=True, help="Path to the setup YAML file, which should have a list of JSON files to use and their corresponding targets.")
     parser.add_argument("--model", choices=["mistral-7B", "mistral-24B", "llama2", "llama3"], default="llama3", help="The model to use for generation.")
     parser.add_argument("--device", type=str, default="cuda", help="Device to run the model on.")
     parser.add_argument("--dtype", type=str, default="float16", help="Data type to use for the model.")
@@ -39,17 +40,18 @@ def find_trigger():
     tokenizer = AutoTokenizer.from_pretrained(model_name)
 
     # Load the setup YAML file
-    with open(args.setup_yaml, "r") as f:
+    setup_yaml_path = pathlib.Path(args.setup_yaml)
+    with open(setup_yaml_path, "r") as f:
         setup = yaml.safe_load(f)
     
-    json_names = setup["json_names"]
+    jsons = setup["jsons"]
     targets = setup["targets"]
-    test_json_names = setup["test_json_names"]
+    test_jsons = setup["test_jsons"]
     test_targets = setup["test_targets"]
 
     messages = []
-    for json_name in json_names:
-        with open(f"data/{json_name}.json") as f:
+    for json_file in jsons:
+        with open(pathlib.Path(json_file)) as f:
             obs_dict = json.load(f)
         sys_content, user_content = promptify_json(obs_dict)
         message=[
@@ -59,8 +61,8 @@ def find_trigger():
         messages.append(message)
 
     test_messages = []
-    for json_name in test_json_names:
-        with open(f"data/{json_name}.json") as f:
+    for json_file in test_jsons:
+        with open(pathlib.Path(json_file)) as f:
             obs_dict = json.load(f)
         sys_content, user_content = promptify_json(obs_dict)
         message=[
@@ -116,12 +118,13 @@ def find_trigger():
         print(f"Generation:\n{tokenizer.batch_decode(output[:, input.shape[1]:], skip_special_tokens=True)[0]}", flush=True)
 
 
-    with open(f"triggers/{json_names[0]}_trigger_uni_{datetime.datetime.now()}.json", "w") as f:
+    trigger_identifier = pathlib.Path(jsons[0]).stem
+    with open(f"triggers/{trigger_identifier}_trigger_uni_{datetime.datetime.now()}.json", "w") as f:
         trig_dict = {
-            "json_names": json_names,
+            "jsons": jsons,
             "model": args.model,
             "targets": targets,
-            "test_json_names": test_json_names,
+            "test_jsons": test_jsons,
             "test_targets": test_targets,
             "trigger": result.best_string,
         }

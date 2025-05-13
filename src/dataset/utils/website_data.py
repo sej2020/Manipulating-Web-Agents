@@ -84,9 +84,10 @@ class DownloaderEnv(BrowserEnv):
         self.start_time = time.time()
         self.start_url = url
         self.page = self.context.new_page()
-        self.page.goto(self.start_url, timeout=5000)
+        self.page.goto(self.start_url, timeout=10000)
         self._wait_dom_loaded()
         self._active_page_check()
+        time.sleep(10)
         obs = self._get_obs()
         obs = self.obs_preprocessor(obs)
         self.page.close()
@@ -102,7 +103,6 @@ class DownloaderEnv(BrowserEnv):
         Returns:
             obs (dict): The observation dictionary with some preprocessing done
         """
-
         return {
             "chat_messages": obs["chat_messages"],
             # "screenshot": obs["screenshot"],
@@ -220,8 +220,8 @@ def get_website_data(delay: int = 0) -> None:
 if __name__ == "__main__":
 
     # if you want to pull down a single website's data
-    url = "https://sj110.pages.iu.edu/travel_ad_demo.html"
-    website_name = 'zzz_travel_ad_demo'
+    url = "https://www.instagram.com/accounts/login/"
+    website_name = 'zzz_instagram_demo'
 
     dl = DownloaderEnv(url)
     obs = dl.obs_from_url(url)

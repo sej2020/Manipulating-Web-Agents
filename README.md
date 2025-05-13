@@ -38,7 +38,7 @@ Demo #1 shows how an attacker could host a website with malware embedded in a li
 Running `python -m src.attack.actions.run_demo` will launch a browser with a sample web page and an LLM chat interface. The LLM chat will ask you to provide a goal for the web navigation agent. Write a task like "Navigate to the contact page" in the window. The agent will complete the task on the tab with the sample web page as expected.
 
 #### Attack
-Run `python -m src.attack.actions.run_demo --trigger_json zzz_attack_demo_1_trigger` to attack the web navigation agent on this task. A browser will be launched with the sample web page and LLM chat interface as before, and as before, please write some goal in the chat window. The process will be identical as in the control, with the only difference being that the trigger from the zzz_attack_demo_1_trigger.json file will be inserted into a hidden link on the website. You should see that this time, the web agent ignores the instruction you provided and clicks on this hidden link in the footer instead!
+Run `python -m src.attack.actions.run_demo --trigger_json zzz_travel_ad_trigger` to attack the web navigation agent on this task. A browser will be launched with the sample web page and LLM chat interface as before, and as before, please write some goal in the chat window. The process will be identical as in the control, with the only difference being that the trigger from the zzz_travel_ad_trigger.json file will be inserted into a hidden link on the website. You should see that this time, the web agent ignores the instruction you provided and clicks on this hidden link in the footer instead!
 
 ... more demos to come!
 

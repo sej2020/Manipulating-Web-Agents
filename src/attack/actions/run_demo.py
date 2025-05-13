@@ -1,5 +1,6 @@
 import argparse
 import json
+import pathlib
 from src.attack.model.agent import DemoAgentArgs
 from browsergym.experiments import EnvArgs, ExpArgs, get_exp_result
 
@@ -19,7 +20,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Run experiment with hyperparameters.")
     parser.add_argument(
         "--model",
-        default="mistral-7B",
+        default="llama3",
         choices=["mistral-7B", "mistral-24B", "gpt-4o-mini", "llama2", "llama3"],
         help="Which LLM to use for the agent.",
     )
@@ -28,18 +29,6 @@ def parse_args():
         type=str,
         default="https://sj110.pages.iu.edu/travel_ad_demo.html",
         help="Starting URL for the environment.",
-    )
-    parser.add_argument(
-        "--use_html",
-        type=str2bool,
-        default=False,
-        help="Use HTML in the agent's observation space.",
-    )
-    parser.add_argument(
-        "--use_axtree",
-        type=str2bool,
-        default=True,
-        help="Use AXTree in the agent's observation space.",
     )
     parser.add_argument(
         "--headless",
@@ -57,7 +46,7 @@ def parse_args():
         "--trigger_json",
         type=str,
         default="",
-        help="The name of the JSON file to find a trigger to attack the LLM on this specific task. If not provided, there will be no attack.",
+        help="The file and path for the JSON file to find a trigger to attack the LLM on this specific task. If not provided, there will be no attack.",
     )
 
     return parser.parse_args()
@@ -72,7 +61,8 @@ def main():
     args = parse_args()
 
     if args.trigger_json:
-        with open(f"triggers/{args.trigger_json}.json") as f:
+        trigger_json_path = pathlib.Path(args.trigger_json)
+        with open(trigger_json_path) as f:
             trigger_dict = json.load(f)
             trigger = trigger_dict["trigger"]
     else:
@@ -83,8 +73,8 @@ def main():
         model_name=args.model,
         chat_mode=False,
         demo_mode="default",
-        use_html=args.use_html,
-        use_axtree=args.use_axtree,
+        use_html=False,
+        use_axtree=True,
         use_screenshot=False,
         trigger=trigger,
     )
@@ -92,10 +82,9 @@ def main():
     env_args = EnvArgs(
         task_name="openended",
         task_seed=None,
-        max_steps=100,
+        max_steps=10,
         headless=args.headless,  # keep the browser open
         viewport={"width": 800, "height": 680},  # can be played with if needed
-
     )
 
     if not args.headless:
