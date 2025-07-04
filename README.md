@@ -1,4 +1,4 @@
-# Prompt Injection Attacks on Web Navigation Agents
+# Manipulating Autonomous LLM-based Web Agents with Indirect Prompt Injection Attacks
 
 With the ubiquity of LLM-integrated applications, investigating potential security risks is crucial. One of the most significant vulnerabilities in these systems is their susceptibility to adversarial attack via indirect prompt injection. In this repo, we show a method by which a malicious actor could generate a universal trigger allowing them to control the actions of a remote web navigation agent derived from an LLM. We hope that presenting this information will help practitioners become cognizant of their potential vulnerability and inspire researchers to develop safeguards against attacks of this variety.
 
