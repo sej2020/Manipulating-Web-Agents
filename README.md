@@ -25,7 +25,7 @@ If you are interested in running a universal trigger optimization procedure, you
     GOOGLE_ENGINE_NAME=<name>
     GOOGLE_CX=<engine ID>
     ```
-3. Run `python -m src.dataset.actions.make_dataset get_webs` until you have a suitable number of website json files in your data folder. For reference, we amassed 10k for our purposes.
+3. Run `python -m src.dataset.actions.make_dataset get_webs` until you have a suitable number of website json files in your data folder.
 4. Run `python -m src.dataset.actions.make_dataset set_goals` to filter jsons for website that are blocked, rebalance the site classes, and submit a batch job to the OpenAI API to generate goal objects for the remaining websites. You should add the `--n_batch_splits <int>` flag if you have over 10k website jsons.
 5. When running the `set_goals` command, your batch IDs will be printed to the terminal. Run `python -m src.dataset.actions.make_dataset get_goals --batch_ids <batch ID 1> <batch ID 2> ...` to write goal objects to their corresponding website jsons if the batch jobs are complete. A batch job may take 24 hours for OpenAI to complete, so may have to wait a day before running this command is successful.
 
@@ -35,31 +35,32 @@ If you are interested in running a universal trigger optimization procedure, you
 Demo #1 shows how an attacker could host a website with malware embedded in a link and force a web navigation agent to click on that link every time. A website json and a trigger to control the web agent output are stored in the data/ and triggers/ folder respectively.
 
 #### Control
-Running `python -m src.attack.actions.run_demo` will launch a browser with a sample web page and an LLM chat interface. The LLM chat will ask you to provide a goal for the web navigation agent. Write a task like "Navigate to the contact page" in the window. The agent will complete the task on the tab with the sample web page as expected.
+Running `python -m src.attack.actions.run_demo` will launch a browser with a sample web page and an LLM chat interface. The LLM chat will ask you to provide a goal for the web navigation agent. Write a task like "Search for a flight to Chicago" in the window. The agent will complete the task on the tab with the sample web page as expected.
 
 #### Attack
-Run `python -m src.attack.actions.run_demo --trigger_json zzz_travel_ad_trigger` to attack the web navigation agent on this task. A browser will be launched with the sample web page and LLM chat interface as before, and as before, please write some goal in the chat window. The process will be identical as in the control, with the only difference being that the trigger from the zzz_travel_ad_trigger.json file will be inserted into a hidden link on the website. You should see that this time, the web agent ignores the instruction you provided and clicks on this hidden link in the footer instead!
-
-... more demos to come!
-
+Run `python -m src.attack.actions.run_demo --trigger_json triggers/zzz_travel_ad_demo_1_trigger_uni_secondary.json` to attack the web navigation agent on this task. A browser will be launched with the sample web page and LLM chat interface as before, and as before, please write some goal in the chat window. The process will be identical as in the control, with the only difference being that the trigger from the zzz_travel_ad_demo_1_trigger_uni_secondary.json file will be inserted into a hidden link on the website. You should see that this time, the web agent ignores the instruction you provided and clicks on the advertisement in the footer!
 
 ### Optimizing your own adversarial trigger
 
 To optimize an adversarial trigger to control the output of a web navigation agent on a website of your choosing, you can use the find_narrow_trigger.py file. Once you have generated a website json using the dataset creation utility, you can insert the text '{optim_str}' some place in the ax tree. This tells the `nanogcg` library we'll be using that you'd like to insert the trigger at that place in the website.
 
 1. Run `pip install nanogcg`
-2. Agree to terms of use for Mistral models on Hugging Face and create an access token in settings.
+2. Agree to terms of use for Llama/Mistral models on Hugging Face and create an access token in settings.
 3. Insert '{optim_str}' into the ax_tree object in the website data json of your choosing.
 4. Run `python -m src.attack.actions.find_narrow_trigger`. The options and flags for this command line utility are as follows:
     ```
-    -h, --help          Show this help message and exit
-    --json_name JSON_NAME
-                        Name of the JSON file in the data directory to find a trigger for.
-    --model {mistral-7B,mistral-24B}
+  -h, --help            show this help message and exit
+  --json JSON           File and path for the JSON file to find a trigger for.
+  --target TARGET       The desired output when triggered.
+  --device DEVICE       Device to run the model on.
+  --trigger_length TRIGGER_LENGTH
+  --include_target, --no-include_target
+  --loss_fn {cw,mm,ce}
+  --search_width SEARCH_WIDTH
+  --top_k TOP_K
+  --model {mistral-7B,mistral-24B,llama2,llama3}
                         The model to use for generation.
-    --target TARGET     The desired output when triggered.
-    --device DEVICE     Device to run the model on.
-    --dtype DTYPE       Data type to use for the model.
+  --dtype DTYPE         Data type to use for the model.
     ```
 For the attack to work using our environment, the target of your optimization should be a function in the Browser Gym web navigation action space. Refer to the [action_space.txt](https://github.com/sej2020/LLM-Honeypots/blob/main/src/attack/utils/action_space.txt) file.
 
