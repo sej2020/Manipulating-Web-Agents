@@ -6,7 +6,7 @@ import torch
 import pathlib
 import datetime
 from transformers import AutoModelForCausalLM, AutoTokenizer
-from src.attack.nanogpp.gpp import run, GPPConfig
+from attack.nanogcg_plus.gcg_plus import run, GCGConfig
 
 from src.attack.utils.promptify import promptify_json
 
@@ -35,7 +35,7 @@ def parse_args() -> argparse.Namespace:
 
 def find_trigger():
     """
-    Uses nanoGPP to find a trigger that will cause the specified model to generate the target output when given the website and
+    Uses nanogcg_plus to find a trigger that will cause the specified model to generate the target output when given the website and
     goal data provided in the specified JSON file. Saves the trigger to a JSON file in the triggers directory.
     """
 
@@ -85,7 +85,7 @@ def find_trigger():
             use_mm = False
             use_cw = False
 
-    config = GPPConfig(
+    config = GCGConfig(
         num_steps=300,
         optim_str_init=starting_str,
         search_width=args.search_width,

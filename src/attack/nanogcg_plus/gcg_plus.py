@@ -12,14 +12,14 @@ import transformers
 from torch import Tensor
 from transformers import set_seed
 
-from src.attack.nanogpp.nano_utils import (
+from src.attack.nanogcg_plus.nano_utils import (
     INIT_CHARS,
     find_executable_batch_size,
     get_nonascii_toks,
     mellowmax,
 )
 
-logger = logging.getLogger("nanogpp")
+logger = logging.getLogger("nanogcg")
 if not logger.hasHandlers():
     handler = logging.StreamHandler()
     formatter = logging.Formatter(
@@ -32,7 +32,7 @@ if not logger.hasHandlers():
 
 
 @dataclass
-class GPPConfig:
+class GCGConfig:
     num_steps: int = 250
     optim_str_init: Union[str, List[str]] = "x x x x x x x x x x x x x x x x x x x x x x x x x x x x x"
     search_width: int = 512
@@ -53,7 +53,7 @@ class GPPConfig:
 
 
 @dataclass
-class GPPResult:
+class GCGResult:
     best_loss: float
     best_string: str
     losses: List[float]
@@ -112,7 +112,7 @@ def sample_ids_from_grad(
         ids : Tensor, shape = (n_optim_ids)
             the sequence of token ids that are being optimized
         grad : Tensor, shape = (n_optim_ids, vocab_size)
-            the gradient of the GPP loss computed with respect to the one-hot token embeddings
+            the gradient of the GCG loss computed with respect to the one-hot token embeddings
         search_width : int
             the number of candidate sequences to return
         topk : int
@@ -176,12 +176,12 @@ def filter_ids(ids: Tensor, tokenizer: transformers.PreTrainedTokenizer):
         return torch.stack(filtered_ids)
 
 
-class GPP:
+class GCG:
     def __init__(
         self,
         model: transformers.PreTrainedModel,
         tokenizer: transformers.PreTrainedTokenizer,
-        config: GPPConfig,
+        config: GCGConfig,
     ):
         self.model = model
         self.tokenizer = tokenizer
@@ -205,7 +205,7 @@ class GPP:
         self,
         messages: Union[str, List[dict], List[str]],
         target: Union[str, List[str]],
-    ) -> GPPResult:
+    ) -> GCGResult:
         model = self.model
         tokenizer = self.tokenizer
         config = self.config
@@ -217,9 +217,9 @@ class GPP:
             torch.use_deterministic_algorithms(True, warn_only=True)
 
         if config.universal:
-            assert isinstance(messages, list) and isinstance(messages[0], list) and isinstance(messages[0][0], dict), "Universal GPP requires a list of conversations, each conversation being a list of dictionaries, like [[{'role': 'system', 'content': '...'}, {'role': 'user', 'content': '...'}], [], ...]"
-            assert isinstance(target, list) and isinstance(target[0], str), "Universal GPP requires a list of target strings, like ['target1', 'target2', ...]"
-            assert isinstance(target, list) and len(messages) == len(target), f"The number of messages and targets must be the same for universal GPP, but got len(messages) = {len(messages)} and len(target) = {len(target)}."
+            assert isinstance(messages, list) and isinstance(messages[0], list) and isinstance(messages[0][0], dict), "Universal GCG requires a list of conversations, each conversation being a list of dictionaries, like [[{'role': 'system', 'content': '...'}, {'role': 'user', 'content': '...'}], [], ...]"
+            assert isinstance(target, list) and isinstance(target[0], str), "Universal GCG requires a list of target strings, like ['target1', 'target2', ...]"
+            assert isinstance(target, list) and len(messages) == len(target), f"The number of messages and targets must be the same for universal GCG, but got len(messages) = {len(messages)} and len(target) = {len(target)}."
         else:
             if isinstance(messages, str):
                 messages = [[{"role": "user", "content": messages}]] # single conversation
@@ -228,11 +228,11 @@ class GPP:
             elif isinstance(messages, list):
                 messages = [copy.deepcopy(messages)]
 
-        # Append the GPP string at the end of the prompt if location not specified
+        # Append the GCG string at the end of the prompt if location not specified
         # Assert optim_str is present if universal optimization
         for conversation in messages:
             if not any(["{optim_str}" in d["content"] for d in conversation]):
-                raise ValueError("GPP string ({optim_str}) must be present in the messages.")
+                raise ValueError("GCG string ({optim_str}) must be present in the messages.")
 
         targets = target if config.universal else [target]
 
@@ -378,7 +378,7 @@ class GPP:
                     optim_strings.append(success_str)
 
                     logger.info("Early stopping triggered.")
-                    result = GPPResult(
+                    result = GCGResult(
                         best_loss=success_loss,
                         best_string=success_str,
                         losses=losses,
@@ -403,7 +403,7 @@ class GPP:
                     losses.append(success_loss)
                     optim_strings.append(success_str)
 
-                    result = GPPResult(
+                    result = GCGResult(
                         best_loss=success_loss,
                         best_string=success_str,
                         losses=losses,
@@ -422,7 +422,7 @@ class GPP:
 
         min_loss_index = losses.index(min(losses))
 
-        result = GPPResult(
+        result = GCGResult(
             best_loss=losses[min_loss_index],
             best_string=optim_strings[min_loss_index],
             losses=losses,
@@ -484,7 +484,7 @@ class GPP:
         self,
         optim_ids: Tensor,
     ) -> Tensor:
-        """Computes the gradient of the GPP loss w.r.t the one-hot token matrix.
+        """Computes the gradient of the GCG loss w.r.t the one-hot token matrix.
 
         Args:
             optim_ids : Tensor, shape = (1, n_optim_ids)
@@ -563,7 +563,7 @@ class GPP:
         target_ids: Tensor,
         pre_padded_prompt_lens: List[int] = None,
     ) -> Tensor:
-        """Computes the GPP loss on all candidate token id sequences.
+        """Computes the GCG loss on all candidate token id sequences.
 
         Args:
             search_batch_size : int
@@ -653,34 +653,34 @@ class GPP:
         return loss
 
 
-# A wrapper around the GPP `run` method that provides a simple API
+# A wrapper around the GCG `run` method that provides a simple API
 def run(
     model: transformers.PreTrainedModel,
     tokenizer: transformers.PreTrainedTokenizer,
     messages: Union[str, List[dict], List[str]],
     target: Union[str, List[str]],
-    config: Optional[GPPConfig] = None,
-) -> GPPResult:
-    """Generates a single optimized string using GPP.
+    config: Optional[GCGConfig] = None,
+) -> GCGResult:
+    """Generates a single optimized string using GCG.
 
     Args:
         model: The model to use for optimization.
         tokenizer: The model's tokenizer.
         messages: The conversation to use for optimization. If config.universal is True, this should be a list of messages.
         target: The target generation. If config.universal is True, this should be a list of targets.
-        config: The GPP configuration to use.
+        config: The GCG configuration to use.
 
     Returns:
-        A GPPResult object that contains losses and the optimized strings.
+        A GCGResult object that contains losses and the optimized strings.
     """
     if config is None:
-        config = GPPConfig()
+        config = GCGConfig()
 
     logger.setLevel(getattr(logging, config.verbosity))
 
     start_optim = time.time()
-    gpp = GPP(model, tokenizer, config)
-    result = gpp.run(messages, target)
+    gcg = GCG(model, tokenizer, config)
+    result = gcg.run(messages, target)
     end_optim = time.time()
     result.time_to_find_s = end_optim - start_optim
     return result
