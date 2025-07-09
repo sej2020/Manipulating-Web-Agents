@@ -1,6 +1,7 @@
 import copy
 import gc
 import logging
+import time
 
 from dataclasses import dataclass
 from tqdm import tqdm
@@ -57,6 +58,8 @@ class GPPResult:
     best_string: str
     losses: List[float]
     strings: List[str]
+    time_to_find_s: float = None
+    num_steps: int = None
 
 
 class AttackBuffer:
@@ -292,7 +295,7 @@ class GPP:
         losses = []
         optim_strings = []
 
-        for _ in tqdm(range(config.num_steps)):
+        for step_num in tqdm(range(config.num_steps)):
             # Compute the gradients for every possible token at every position - this is linearized loss approximation
             optim_ids_onehot_grad = self.compute_token_gradient(optim_ids)
 
@@ -365,8 +368,8 @@ class GPP:
             buffer.log_buffer(tokenizer)
 
             if config.early_stop and not config.universal:
-                if torch.any(induced_target_all).item():
-                    success_idx = torch.where(induced_target_all == True)[0][0]
+                if torch.any(induced_target_all.squeeze(0)).item():
+                    success_idx = torch.where(induced_target_all.squeeze(0))[0][0]
                     success_loss = av_loss[success_idx].item()
                     success_ids = sampled_ids[success_idx]
                     success_str = tokenizer.decode(success_ids)
@@ -380,6 +383,7 @@ class GPP:
                         best_string=success_str,
                         losses=losses,
                         strings=optim_strings,
+                        num_steps=step_num + 1,
                     )
                     return result
 
@@ -388,7 +392,7 @@ class GPP:
                 induced_all_targets = torch.all(induced_target_all, dim=0)
                 if torch.any(induced_all_targets).item():
                     print("\n\n######## TRIGGER WORKED, ADDING ANOTHER PROMPT ############\n\n", flush=True)
-                    success_idx = torch.where(induced_all_targets == True)[0][0]
+                    success_idx = torch.where(induced_all_targets)[0][0]
                     self.prompt_index += 1
                 if self.prompt_index == len(messages): # this means we have succeed at attacking all prompts
                     logger.info("Early stopping triggered.")
@@ -404,6 +408,7 @@ class GPP:
                         best_string=success_str,
                         losses=losses,
                         strings=optim_strings,
+                        num_steps=step_num + 1,
                     )
                     return result
 
@@ -422,6 +427,7 @@ class GPP:
             best_string=optim_strings[min_loss_index],
             losses=losses,
             strings=optim_strings,
+            num_steps=config.num_steps,
         )
 
         return result
@@ -611,7 +617,7 @@ class GPP:
                 del outputs
                 gc.collect()
                 torch.cuda.empty_cache()
-        
+
         return torch.cat(all_loss, dim=0), torch.cat(all_induced_target, dim=0)
 
 
@@ -672,6 +678,9 @@ def run(
 
     logger.setLevel(getattr(logging, config.verbosity))
 
+    start_optim = time.time()
     gpp = GPP(model, tokenizer, config)
     result = gpp.run(messages, target)
+    end_optim = time.time()
+    result.time_to_find_s = end_optim - start_optim
     return result

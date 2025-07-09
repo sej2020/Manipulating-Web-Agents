@@ -4,3 +4,8 @@ data/*
 archive/*
 *.sh
 results/*
+*.html
+triggers/*
+triggers_twti/*
+scripts/*
+*.yaml

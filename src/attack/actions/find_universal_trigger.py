@@ -15,6 +15,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--model", choices=["mistral-7B", "mistral-24B", "llama2", "llama3"], default="llama3", help="The model to use for generation.")
     parser.add_argument("--device", type=str, default="cuda", help="Device to run the model on.")
     parser.add_argument("--dtype", type=str, default="float16", help="Data type to use for the model.")
+    parser.add_argument("--optim_str_init", type=str, default="x x x x x x x x x x x x x x x x x x x x ")
     args = parser.parse_args()
     return args
 
@@ -53,30 +54,42 @@ def find_trigger():
     for json_file in jsons:
         with open(pathlib.Path(json_file)) as f:
             obs_dict = json.load(f)
-        sys_content, user_content = promptify_json(obs_dict)
-        message=[
-                {"role": "system", "content": sys_content},
-                {"role": "user", "content": user_content}
-            ]
-        messages.append(message)
+        obs_dict_copy = obs_dict.copy()
+        for goal in obs_dict["goal_object"]:
+            obs_dict_copy["goal_object"] = [goal]
+            sys_content, user_content = promptify_json(obs_dict_copy)
+            message=[
+                    {"role": "system", "content": sys_content},
+                    {"role": "user", "content": user_content}
+                ]
+            messages.append(message)
+
+    assert len(messages) == len(targets), "Number of messages and targets must be the same."
 
     test_messages = []
     for json_file in test_jsons:
         with open(pathlib.Path(json_file)) as f:
             obs_dict = json.load(f)
-        sys_content, user_content = promptify_json(obs_dict)
-        message=[
-                {"role": "system", "content": sys_content},
-                {"role": "user", "content": user_content}
-            ]
+        obs_dict_copy = obs_dict.copy()
+        for goal in obs_dict["goal_object"]:
+            obs_dict_copy["goal_object"] = [goal]
+            sys_content, user_content = promptify_json(obs_dict_copy)
+            message=[
+                    {"role": "system", "content": sys_content},
+                    {"role": "user", "content": user_content}
+                ]
         test_messages.append(message)
+
+    assert len(test_messages) == len(test_targets), "Number of test messages and targets must be the same."
 
     config = GPPConfig(
         num_steps=2000,
+        optim_str_init=args.optim_str_init,
         universal=True,
         early_stop=True,
         verbosity="INFO",
         batch_size=1,
+        use_cw_loss=False,
         add_space_before_target = True if args.model == "llama2" else False,
     )
 

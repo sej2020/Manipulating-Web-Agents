@@ -124,7 +124,7 @@ You will now think step by step and produce your next best action. Reflect on yo
                     f"Unknown message type {repr(message['type'])} in the task goal."
                 )
     full_prompt_txt = "\n".join(prompt_text_strings)
-    print(full_prompt_txt)
+    # print(full_prompt_txt)
 
     sys_content = '\n'.join([s['text'] for s in system_msgs])
     user_content = '\n'.join([u['text'] for u in user_msgs])
@@ -139,7 +139,7 @@ You will now think step by step and produce your next best action. Reflect on yo
     # ready to be fed directly into the model's complete function
 
 if __name__ == "__main__":
-    json_path = "data/zzz_instagram_demo.json"
+    json_path = "data/demo_sites/instagram/zzz_instagram_demo_1.json"
     with open(json_path, "r") as f:
         obs_dict = json.load(f)
     sys_content, user_content = promptify_json(obs_dict)

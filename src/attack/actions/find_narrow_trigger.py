@@ -1,5 +1,7 @@
 import argparse
 import json
+import os
+import math
 import torch
 import pathlib
 import datetime
@@ -10,12 +12,24 @@ from src.attack.utils.promptify import promptify_json
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
+
+    # General arguments
     parser.add_argument("--json", type=str, help="File and path for the JSON file to find a trigger for.", default="")
-    parser.add_argument("--model", choices=["mistral-7B", "mistral-24B", "llama2", "llama3"], default="mistral-7B", help="The model to use for generation.")
     parser.add_argument("--target", type=str, default="```click(\"41\")```", help="The desired output when triggered.")
     parser.add_argument("--device", type=str, default="cuda", help="Device to run the model on.")
+    
+    # Config for TWTI expr
+    parser.add_argument("--trigger_length", type=int, required=True)
+    parser.add_argument("--include_target", required=True, action=argparse.BooleanOptionalAction)
+    parser.add_argument("--loss_fn", choices=["cw", "mm", "ce"])
+    parser.add_argument("--search_width", type=int, required=True)
+    parser.add_argument("--top_k", type=int, required=True)
+
+    # Defaults are probably good
+    parser.add_argument("--model", choices=["mistral-7B", "mistral-24B", "llama2", "llama3"], default="llama3", help="The model to use for generation.")
     parser.add_argument("--dtype", type=str, default="float16", help="Data type to use for the model.")
     args = parser.parse_args()
+    
     return args
 
 
@@ -26,6 +40,8 @@ def find_trigger():
     """
 
     args = parse_args()
+    print("~~ARGS~~:\n", args.__dict__, flush=True)
+
     match args.model:
         case "mistral-7B":
             model_name = "mistralai/Mistral-7B-Instruct-v0.3"
@@ -50,12 +66,35 @@ def find_trigger():
             {"role": "user", "content": user_content}
         ]
 
-    # could be customizable from the command line in the future
+
+    if args.include_target:
+        n_target_tokens = len(tokenizer.tokenize(args.target))
+        total_xs = args.trigger_length - n_target_tokens
+        starting_str = math.floor(total_xs/2) * "x " + args.target + math.ceil(total_xs/2) * "x "
+    else:
+        starting_str = args.trigger_length * "x "
+    
+    match args.loss_fn:
+        case "cw":
+            use_mm = False
+            use_cw = True
+        case "mm":
+            use_mm = True
+            use_cw = False
+        case "ce":
+            use_mm = False
+            use_cw = False
+
     config = GPPConfig(
-        num_steps=1000,
+        num_steps=300,
+        optim_str_init=starting_str,
+        search_width=args.search_width,
+        batch_size=4,
+        topk=args.top_k,
+        use_mellowmax=use_mm,
+        use_cw_loss=use_cw,
         early_stop=True,
         verbosity="INFO",
-        # batch_size=1,
         add_space_before_target = True if args.model == "llama2" else False,
     )
 
@@ -79,12 +118,16 @@ def find_trigger():
     print(f"Prompt:\n{test_message[-1]['content']}\n", flush=True)
     print(f"Generation:\n{tokenizer.batch_decode(output[:, input.shape[1]:], skip_special_tokens=True)[0]}", flush=True)
 
-    with open(f"triggers/{json_path.stem}_{datetime.datetime.now()}.json", "w") as f:
+    os.makedirs("triggers_twti", exist_ok=True)
+    with open(f"triggers_twti/{json_path.stem}_{datetime.datetime.now()}.json", "w") as f:
         trig_dict = {
             "json_path": str(json_path),
             "model": args.model,
             "target": args.target,
             "trigger": result.best_string,
+            "time_to_find": result.time_to_find_s,
+            "num_steps": result.num_steps,
+            "args": args.__dict__,
         }
         json.dump(trig_dict, f, indent=4)
 

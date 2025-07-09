@@ -39,7 +39,7 @@ def parse_args():
     parser.add_argument(
         "--goal",
         type=str,
-        default="Navigate to the contact page",
+        default="Search for a flight to Chicago",
         help="Goal of the task. Necessary if headless is True.",
     )
     parser.add_argument(
@@ -48,6 +48,12 @@ def parse_args():
         default="",
         help="The file and path for the JSON file to find a trigger to attack the LLM on this specific task. If not provided, there will be no attack.",
     )
+    parser.add_argument(
+        "--exp_name",
+        type=str,
+        default="testing"
+    )
+    parser.add_argument("--n_steps", type=int, default=1, help="Number of steps to run the experiment.")
 
     return parser.parse_args()
 
@@ -82,9 +88,10 @@ def main():
     env_args = EnvArgs(
         task_name="openended",
         task_seed=None,
-        max_steps=10,
+        max_steps=args.n_steps,
+        record_video=True,
         headless=args.headless,  # keep the browser open
-        viewport={"width": 800, "height": 680},  # can be played with if needed
+        # viewport={"width": 1500, "height": 600},  # can be played with if needed
     )
 
     if not args.headless:
@@ -98,6 +105,7 @@ def main():
     exp_args = ExpArgs(
         env_args=env_args,
         agent_args=agent_args,
+        exp_name=args.exp_name,
     )
 
     # running and logging results

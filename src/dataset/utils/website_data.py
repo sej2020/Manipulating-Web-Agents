@@ -220,10 +220,10 @@ def get_website_data(delay: int = 0) -> None:
 if __name__ == "__main__":
 
     # if you want to pull down a single website's data
-    url = "https://www.instagram.com/accounts/login/"
-    website_name = 'zzz_instagram_demo'
+    url = "https://www.citybrewtours.com/"
+    website_name = 'city'
 
     dl = DownloaderEnv(url)
     obs = dl.obs_from_url(url)
     dl.page.close()
-    json.dump(obs, open(f"data/{website_name}.json", 'w'), indent=4)
+    json.dump(obs, open(f"data/demo_sites/TWUI/{website_name}.json", 'w'), indent=4)
