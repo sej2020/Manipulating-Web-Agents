@@ -5,7 +5,7 @@ import torch
 import pathlib
 import datetime
 from transformers import AutoModelForCausalLM, AutoTokenizer
-from attack.nanogcg_plus.gcg_plus import run, GCGConfig
+from src.attack.nanogcg_plus.gcg_plus import run, GCGConfig
 
 from src.attack.utils.promptify import promptify_json
 
